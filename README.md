@@ -4,8 +4,7 @@ Programa em C com menu que faz busca em profundidade (DFS) e busca em largura (B
 
 ## Integrantes
 
-- _(nome)_
-- _(nome)_
+- Giovanni Beker — RA a2767007
 
 ## Como rodar
 
