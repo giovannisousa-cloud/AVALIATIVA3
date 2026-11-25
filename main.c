@@ -1,218 +1,229 @@
 /*
- * ATIVIDADE AVALIATIVA 3 - Implementacao de grafos em C
+ * ATIVIDADE AVALIATIVA 3 - Grafos em C
+ * Menu, busca em profundidade (DFS) e busca em largura (BFS).
  *
- * Menu interativo com:
- *   - Busca em profundidade (DFS) recursiva com backtracking
- *   - Busca em largura (BFS) com fila
- *   - Caminho percorrido e dados gerais de cada busca
- *
- * Compilar:  gcc -Wall -Wextra -std=c99 -o grafo main.c grafo.c fila.c busca.c
- * Executar:  ./grafo              (le o grafo de grafo.txt)
- *            ./grafo outro.txt    (le o grafo de outro arquivo)
+ * Compilar: gcc -o grafo main.c
+ * Executar: ./grafo   (no Windows: grafo.exe)
  */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include "grafo.h"
-#include "busca.h"
 
-#define ARQUIVO_PADRAO "grafo.txt"
+#define N 10 /* quantidade de vertices */
 
-/* ------------------------------------------------------------------ */
-/* Entrada do usuario                                                  */
-/* ------------------------------------------------------------------ */
+/* Nome de cada vertice (o numero do vertice e a posicao no vetor) */
+char *nomes[N] = {
+    "Centro", "Rodoviaria", "Hospital", "Escola", "Mercado",
+    "Praca", "Parque", "Universidade", "Ilha", "Farol"
+};
 
-/* Le uma linha inteira do teclado, sem o '\n' e sem espacos nas pontas. */
-static void ler_linha(char *buf, int tam)
+int adj[N][N];      /* matriz de adjacencia: 1 = existe aresta */
+
+/* Dados da busca */
+int visitado[N];    /* 1 = vertice ja visitado */
+int caminho[N];     /* vertices na ordem em que foram visitados */
+int qtdVisitados;
+int qtdArestas;     /* arestas percorridas */
+int encontrado;     /* 1 = objetivo encontrado */
+
+void adicionarAresta(int u, int v)
 {
-    char *inicio;
-    size_t len;
+    adj[u][v] = 1;
+    adj[v][u] = 1; /* grafo nao direcionado */
+}
 
-    if (fgets(buf, tam, stdin) == NULL) {
-        printf("\nEntrada encerrada. Saindo...\n");
-        exit(0);
+void montarGrafo(void)
+{
+    adicionarAresta(0, 1); /* Centro - Rodoviaria       */
+    adicionarAresta(0, 2); /* Centro - Hospital         */
+    adicionarAresta(0, 5); /* Centro - Praca            */
+    adicionarAresta(1, 4); /* Rodoviaria - Mercado      */
+    adicionarAresta(2, 3); /* Hospital - Escola         */
+    adicionarAresta(2, 5); /* Hospital - Praca          */
+    adicionarAresta(3, 7); /* Escola - Universidade     */
+    adicionarAresta(4, 7); /* Mercado - Universidade    */
+    adicionarAresta(5, 6); /* Praca - Parque            */
+    adicionarAresta(6, 7); /* Parque - Universidade     */
+    adicionarAresta(8, 9); /* Ilha - Farol (separados do resto) */
+}
+
+void mostrarGrafo(void)
+{
+    int i, j;
+    printf("\nGRAFO (lista de adjacencia):\n");
+    for (i = 0; i < N; i++) {
+        printf("%d - %-12s: ", i, nomes[i]);
+        for (j = 0; j < N; j++)
+            if (adj[i][j])
+                printf("%s ", nomes[j]);
+        printf("\n");
     }
-    len = strlen(buf);
-    while (len > 0 && isspace((unsigned char)buf[len - 1]))
-        buf[--len] = '\0';
-    inicio = buf;
-    while (isspace((unsigned char)*inicio))
-        inicio++;
-    memmove(buf, inicio, strlen(inicio) + 1);
 }
 
-static void pausar(void)
+void limparBusca(void)
 {
-    char buf[8];
-    printf("\nPressione ENTER para continuar...");
-    ler_linha(buf, sizeof(buf));
+    int i;
+    for (i = 0; i < N; i++)
+        visitado[i] = 0;
+    qtdVisitados = 0;
+    qtdArestas = 0;
+    encontrado = 0;
 }
 
-/*
- * Pede um vertice ao usuario, que pode digitar o NOME ou o NUMERO.
- * Se 'opcional' for 1, ENTER vazio retorna -1 (sem vertice).
- */
-static int ler_vertice(const Grafo *g, const char *mensagem, int opcional)
+/* DFS recursiva: desce o maximo possivel e, quando nao ha mais vizinhos
+   novos, volta (backtracking) para o vertice anterior. */
+void dfs(int v, int objetivo)
 {
-    char buf[100];
-    char *fim;
-    long numero;
-    int indice;
+    int i;
 
+    visitado[v] = 1;
+    caminho[qtdVisitados++] = v;
+    printf("Visitando %s\n", nomes[v]);
+
+    if (v == objetivo) {
+        encontrado = 1;
+        return;
+    }
+
+    for (i = 0; i < N; i++) {
+        if (adj[v][i] && !visitado[i]) {
+            qtdArestas++;
+            dfs(i, objetivo);
+            if (encontrado)
+                return; /* achou o objetivo: para a busca */
+            printf("Voltando para %s (backtracking)\n", nomes[v]);
+        }
+    }
+}
+
+/* BFS com fila: visita primeiro todos os vizinhos, depois os vizinhos dos vizinhos. */
+void bfs(int origem, int objetivo)
+{
+    int fila[N];
+    int inicio = 0, fim = 0;
+    int v, i;
+
+    visitado[origem] = 1;
+    fila[fim++] = origem; /* enfileira a origem */
+
+    while (inicio < fim) {
+        v = fila[inicio++]; /* desenfileira */
+        caminho[qtdVisitados++] = v;
+        printf("Visitando %s\n", nomes[v]);
+
+        if (v == objetivo) {
+            encontrado = 1;
+            return;
+        }
+
+        for (i = 0; i < N; i++) {
+            if (adj[v][i] && !visitado[i]) {
+                visitado[i] = 1;
+                fila[fim++] = i; /* enfileira o vizinho */
+                qtdArestas++;
+            }
+        }
+    }
+}
+
+void mostrarResultado(int origem, int objetivo)
+{
+    int i;
+
+    printf("\n------ DADOS DA BUSCA ------\n");
+    printf("Vertice de origem: %s\n", nomes[origem]);
+
+    printf("Vertices visitados: ");
+    for (i = 0; i < qtdVisitados; i++)
+        printf("%s%s", nomes[caminho[i]], i < qtdVisitados - 1 ? ", " : "\n");
+
+    printf("Quantidade de vertices visitados: %d\n", qtdVisitados);
+    printf("Quantidade de arestas percorridas: %d\n", qtdArestas);
+
+    printf("Caminho percorrido: ");
+    for (i = 0; i < qtdVisitados; i++)
+        printf("%s%s", nomes[caminho[i]], i < qtdVisitados - 1 ? " -> " : "\n");
+
+    if (objetivo == -1)
+        printf("Objetivo: nenhum (busca completa)\n");
+    else if (encontrado)
+        printf("Objetivo %s: ENCONTRADO\n", nomes[objetivo]);
+    else
+        printf("Objetivo %s: NAO ENCONTRADO\n", nomes[objetivo]);
+    printf("----------------------------\n");
+}
+
+/* Le o numero de um vertice. Se podeNenhum for 1, aceita -1 (sem objetivo). */
+int lerVertice(char *mensagem, int podeNenhum)
+{
+    int v;
     for (;;) {
         printf("%s", mensagem);
-        ler_linha(buf, sizeof(buf));
-
-        if (buf[0] == '\0') {
-            if (opcional)
-                return -1;
-            printf("  Informe um vertice.\n");
+        if (scanf("%d", &v) != 1) {
+            if (feof(stdin))
+                exit(0);
+            while (getchar() != '\n')
+                ; /* descarta o que foi digitado errado */
             continue;
         }
-
-        /* Primeiro tenta pelo nome (funciona mesmo se os nomes forem numeros). */
-        indice = grafo_indice(g, buf);
-        if (indice >= 0)
-            return indice;
-
-        numero = strtol(buf, &fim, 10);
-        if (*fim == '\0' && numero >= 0 && numero < g->n)
-            return (int)numero;
-
-        printf("  Vertice invalido. Digite o numero [0-%d] ou o nome.\n", g->n - 1);
+        if ((v >= 0 && v < N) || (podeNenhum && v == -1))
+            return v;
+        printf("Vertice invalido.\n");
     }
 }
 
-/* ------------------------------------------------------------------ */
-/* Acoes do menu                                                       */
-/* ------------------------------------------------------------------ */
-
-static void executar_busca(const Grafo *g, int tipo, int passo_a_passo)
+void executarBusca(int tipo)
 {
-    static ResultadoBusca resultado;
-    int origem, objetivo;
+    int i, origem, objetivo;
 
-    printf("\n===== %s =====\n",
-           tipo == BUSCA_DFS ? "BUSCA EM PROFUNDIDADE (DFS)" : "BUSCA EM LARGURA (BFS)");
-    grafo_listar_vertices(g);
-    printf("\n");
-    origem = ler_vertice(g, " Vertice de origem: ", 0);
-    objetivo = ler_vertice(g, " Vertice objetivo (ENTER = percorrer o grafo todo): ", 1);
+    printf("\nVertices:\n");
+    for (i = 0; i < N; i++)
+        printf("  %d - %s\n", i, nomes[i]);
 
-    if (tipo == BUSCA_DFS)
-        busca_profundidade(g, origem, objetivo, passo_a_passo, &resultado);
-    else
-        busca_largura(g, origem, objetivo, passo_a_passo, &resultado);
+    origem = lerVertice("Vertice de origem: ", 0);
+    objetivo = lerVertice("Vertice objetivo (-1 para nenhum): ", 1);
 
-    busca_imprimir_resultado(g, &resultado);
-}
-
-static void executar_comparacao(const Grafo *g)
-{
-    int origem, objetivo;
-
-    printf("\n===== COMPARAR DFS x BFS =====\n");
-    grafo_listar_vertices(g);
-    printf("\n");
-    origem = ler_vertice(g, " Vertice de origem: ", 0);
-    objetivo = ler_vertice(g, " Vertice objetivo (ENTER = percorrer o grafo todo): ", 1);
-    busca_comparar(g, origem, objetivo);
-}
-
-static void carregar_de_arquivo(Grafo *g)
-{
-    char caminho[256];
-    int status;
-
-    printf("\n Nome do arquivo (ENTER = %s): ", ARQUIVO_PADRAO);
-    ler_linha(caminho, sizeof(caminho));
-    if (caminho[0] == '\0')
-        strcpy(caminho, ARQUIVO_PADRAO);
-
-    status = grafo_carregar_arquivo(g, caminho);
-    if (status == 1) {
-        printf(" Grafo carregado de '%s'.\n", caminho);
-        grafo_imprimir_resumo(g);
-    } else if (status == -1) {
-        printf(" Nao foi possivel abrir '%s'. O grafo atual foi mantido.\n", caminho);
+    limparBusca();
+    if (tipo == 1) {
+        printf("\n--- BUSCA EM PROFUNDIDADE (DFS) ---\n");
+        dfs(origem, objetivo);
     } else {
-        printf(" Arquivo '%s' invalido. O grafo atual foi mantido.\n", caminho);
+        printf("\n--- BUSCA EM LARGURA (BFS) ---\n");
+        bfs(origem, objetivo);
     }
+    mostrarResultado(origem, objetivo);
 }
 
-static void exibir_menu(const Grafo *g, int passo_a_passo)
+int main(void)
 {
-    printf("\n==========================================================\n");
-    printf("      GRAFOS EM C - BUSCA EM PROFUNDIDADE E EM LARGURA\n");
-    printf("==========================================================\n");
-    grafo_imprimir_resumo(g);
-    printf(" Modo passo a passo: %s\n", passo_a_passo ? "LIGADO" : "DESLIGADO");
-    printf("----------------------------------------------------------\n");
-    printf("  1 - Exibir grafo (lista de adjacencia)\n");
-    printf("  2 - Exibir matriz de adjacencia\n");
-    printf("  3 - Busca em profundidade (DFS)\n");
-    printf("  4 - Busca em largura (BFS)\n");
-    printf("  5 - Comparar DFS x BFS\n");
-    printf("  6 - Ligar/desligar modo passo a passo\n");
-    printf("  7 - Carregar grafo de arquivo\n");
-    printf("  8 - Usar grafo padrao (embutido no programa)\n");
-    printf("  0 - Sair\n");
-    printf("----------------------------------------------------------\n");
-    printf(" Escolha uma opcao: ");
-}
+    int opcao;
 
-/* ------------------------------------------------------------------ */
-/* Programa principal                                                  */
-/* ------------------------------------------------------------------ */
+    montarGrafo();
 
-int main(int argc, char *argv[])
-{
-    static Grafo grafo;
-    const char *arquivo = (argc > 1) ? argv[1] : ARQUIVO_PADRAO;
-    int passo_a_passo = 1;
-    char opcao[16];
-    int status;
+    do {
+        printf("\n===== MENU =====\n");
+        printf("1 - Mostrar grafo\n");
+        printf("2 - Busca em profundidade (DFS)\n");
+        printf("3 - Busca em largura (BFS)\n");
+        printf("0 - Sair\n");
+        printf("Opcao: ");
 
-    status = grafo_carregar_arquivo(&grafo, arquivo);
-    if (status == 1) {
-        printf("Grafo carregado de '%s'.\n", arquivo);
-    } else {
-        printf("Nao foi possivel usar '%s'. Carregando o grafo padrao.\n", arquivo);
-        grafo_carregar_padrao(&grafo);
-    }
-
-    for (;;) {
-        exibir_menu(&grafo, passo_a_passo);
-        ler_linha(opcao, sizeof(opcao));
-
-        if (strcmp(opcao, "0") == 0) {
-            printf("\nEncerrando o programa. Ate mais!\n");
-            break;
-        } else if (strcmp(opcao, "1") == 0) {
-            grafo_imprimir_lista(&grafo);
-        } else if (strcmp(opcao, "2") == 0) {
-            grafo_imprimir_matriz(&grafo);
-        } else if (strcmp(opcao, "3") == 0) {
-            executar_busca(&grafo, BUSCA_DFS, passo_a_passo);
-        } else if (strcmp(opcao, "4") == 0) {
-            executar_busca(&grafo, BUSCA_BFS, passo_a_passo);
-        } else if (strcmp(opcao, "5") == 0) {
-            executar_comparacao(&grafo);
-        } else if (strcmp(opcao, "6") == 0) {
-            passo_a_passo = !passo_a_passo;
-            printf("\n Modo passo a passo %s.\n", passo_a_passo ? "LIGADO" : "DESLIGADO");
-        } else if (strcmp(opcao, "7") == 0) {
-            carregar_de_arquivo(&grafo);
-        } else if (strcmp(opcao, "8") == 0) {
-            grafo_carregar_padrao(&grafo);
-            printf("\n Grafo padrao carregado.\n");
-        } else {
-            printf("\n Opcao invalida. Digite um numero de 0 a 8.\n");
-            continue;
+        if (scanf("%d", &opcao) != 1) {
+            if (feof(stdin))
+                break;
+            while (getchar() != '\n')
+                ;
+            opcao = -1;
         }
-        pausar();
-    }
+
+        switch (opcao) {
+        case 1: mostrarGrafo(); break;
+        case 2: executarBusca(1); break;
+        case 3: executarBusca(2); break;
+        case 0: printf("Saindo...\n"); break;
+        default: printf("Opcao invalida.\n");
+        }
+    } while (opcao != 0);
+
     return 0;
 }
